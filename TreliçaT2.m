@@ -52,7 +52,7 @@ B = 300
 
 % Propriedades dos elementos
 elarea = zeros(nel, 1);
-el_modulus = 205000000;
+el_modulus = 205000000000;
 
 %tipos 1 e 2
 for j = [1:9, 28:44, 63:70]
@@ -109,9 +109,9 @@ bcval = zeros(1,12);
 ff = zeros(sdof, 1);                  % Vetor de forças
 kk = zeros(sdof);                     % Matriz de rigidez global
 index = zeros(nnel * ndof, 1);        % Vetor de índices
-elforce = zeros(nnel * ndof, 1);      % Vetor de forças do elemento
-eldisp = zeros(nnel * ndof, 1);       % Vetor de deslocamentos do elemento
-k = zeros(nnel * ndof, nnel * ndof);  % Matriz de rigidez do elemento
+%elforce = zeros(nnel * ndof, 1);      % Vetor de forças do elemento
+%eldisp = zeros(nnel * ndof, 1);       % Vetor de deslocamentos do elemento
+%k = zeros(nnel * ndof, nnel * ndof);  % Matriz de rigidez do elemento
 
 %_______________________________________________________
 
@@ -129,14 +129,15 @@ P_total = 374160+660690+struct_weight
 
 conc_load = P_total /20;
 
-ff(2:3:60) = -conc_load;
+ff(5:3:27) = -conc_load;
+ff(35:3:57) = -conc_load;
 %_______________________________________________________
 
 % Iteração sobre cada elemento
 teste_length = zeros(nel, 1);
 
 for idx = 1:nel
-  C = 10
+
   nd(1) = nodes(idx,1);
   nd(2) = nodes(idx,2);
 
@@ -170,12 +171,46 @@ for idx = 1:nel
     endfor
   endfor
 
-
-
 endfor
 
+%_______________________________________________________
 
+% Resolver matriz para obter vetor de deslocamentos
 
+displac = zeros(121,1);
+n = length(bcdof);
+##
+##desc = [4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121];
+##dd1 = displac(desc);
+##F11 = ff(desc);
+##
+##dd2 = displac(bcdof);
+##F22 = ff(bcdof);
+##
+##k11 = kk(desc,desc)
+##k12 = kk(desc, bcdof);
+##k21 = kk(bcdof,desc);
+##k22 = kk(bcdof,bcdof);
+##
+##dd1 = k11\(F11 - k12*dd2)
+##F22 = k21*dd1 + k22*dd2
+
+for i = 1:n
+  c = bcdof(i);
+  for j = 1:sdof
+    kk(c, j) = 0;
+    %kk(j, c) = 0;
+  endfor
+  kk(c, c) = 1;
+  ff(c) = bcval(i)
+endfor
+##
+##kk_inv = inv(kk)
+##
+##displac = kk_inv * ff
+
+displac = kk\ff
+reac = kk * displac - ff;
 
 
 
