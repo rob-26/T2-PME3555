@@ -129,8 +129,8 @@ endfor
 
 % Condições de contorno
 
-bcdof = [1,2,3,30,31,32,33,60];
-bcval = zeros(1,8);
+bcdof = [1,2,3,30,31,32,33,60];   % Graus de liberdade restritos
+bcval = zeros(1,8);               % Restrição de deslocamento
 
 %_______________________________________________________
 
@@ -146,23 +146,21 @@ k = zeros(nnel * ndof, nnel * ndof);  % Matriz de rigidez do elemento
 %_______________________________________________________
 
 % Carregamentos nodais
-% !!!!!!!!!!!!!!!!!!!!!!!Inserir peso próprio e peso do concreto
 
 total_vol = sum(elvolume);
-rho_aco1020 = 7870;
+rho_aco1020 = 7850;
 struct_mass = total_vol * rho_aco1020;
 struct_weight = 9.81 * struct_mass;
 
 f_total = 5000*31.18*3 + struct_weight;
-f_sem_peso = f_total - struct_weight;
 
-f_conc = f_total/16;
+f_conc = f_total/20;
 
 ff(3:3:30) = -f_conc;
 ff(33:3:60) = -f_conc;
 
 %--------------------------
-%  loop for elements
+%  Loop para definição da matriz de rigidez
 %--------------------------
 
 for iel=1:nel    % loop for the total number of elements
@@ -173,10 +171,10 @@ nd(2)=nodes(iel,2);   % 2nd connected node for the (iel)-th element
 x1 = ncoord(nd(1),1); y1 = ncoord(nd(1),2); z1 = ncoord(nd(1),3);
 x2 = ncoord(nd(2),1); y2 = ncoord(nd(2),2); z2 = ncoord(nd(2),3);
 
-leng= sqrt((x2 - x1)^2 + (y2 - y1)^2 + (z2 - z1)^2);  % element length
+leng = elleng(iel);  % element length
 
 cx = (x2 - x1)/leng; cy = (y2 - y1)/leng;  cz = (z2 - z1)/leng;
-%fprintf('Para o %d elemento, cx = %f, cy= %f, cz= %f \n', iel, cx, cy, cz);
+
 el=elprop(iel,1);               % extract elastic modulus
 area=elprop(iel,2);             % extract cross-sectional area
 
@@ -244,19 +242,34 @@ end
 forcas_por_elemento = forcas_por_elemento';
 
 %% Visualiza��o de deslocamentos nodais
-node_positions = zeros(nnode, 3); % Assumindo posi��es iniciais para visualiza��o
-
-for i = 1:nnode
-    node_positions(i, :) = [i, 0, 0];
-end
-
-displaced_positions = node_positions + reshape(disp, [3, nnode])';
 
 % Plot 2D
 figure;
-plot(ncoord(1:10,1), ncoord(1:10, 3), 'bo', 'DisplayName', 'Original');
+plot(ncoord(1:10,1), ncoord(1:10, 2), 'bo', 'DisplayName', 'Original');
 hold on;
-plot(ncoord(1:10,1)+disp(3:3:30), ncoord(1:10, 3)+ disp(3:3:30), 'ro', 'DisplayName', 'Displaced');
+plot(ncoord(1:10,1)+disp(1:3:30), ncoord(1:10, 2)+ disp(2:3:30), 'ro', 'DisplayName', 'Displaced');
+legend show;
+xlabel('X Position');
+ylabel('Z Position');
+title('Nodal Displacements in 2D');
+grid on;
+
+% Plot 2D
+figure;
+plot(ncoord(1:20,1), ncoord(1:20, 2), 'bo', 'DisplayName', 'Original');
+hold on;
+plot(ncoord(1:20,1)+disp(1:3:60), ncoord(1:20, 2)+ disp(2:3:60), 'ro', 'DisplayName', 'Displaced');
+legend show;
+xlabel('X Position');
+ylabel('Z Position');
+title('Nodal Displacements in 2D');
+grid on;
+
+% Plot 2D
+figure;
+plot(ncoord(30:38,1), ncoord(30:38, 3), 'bo', 'DisplayName', 'Original');
+hold on;
+plot(ncoord(30:38,1)+disp(88:3:114), ncoord(30:38, 3)+ disp(89:3:114), 'ro', 'DisplayName', 'Displaced');
 legend show;
 xlabel('X Position');
 ylabel('Z Position');
@@ -275,9 +288,32 @@ grid on;
 ##title('3D Visualization of Nodal Displacements');
 ##grid on;
 
+% Plot da treliça com coloração baseada nas forças nos elementos
+figure;
+hold on;
+colormap(jet);
+caxis([-max(abs(forcas_por_elemento)), max(abs(forcas_por_elemento))]);
+colorbar;
+title('Treliça colorida segundo forças axiais');
+xlabel('X'); ylabel('Y'); zlabel('Z');
+axis equal;
 
+% Loop pelos elementos para plotar as barras com cor
+for i = 1:nel
+    n1 = nodes(i, 1);
+    n2 = nodes(i, 2);
 
+    x = [ncoord(n1, 1), ncoord(n2, 1)];
+    y = [ncoord(n1, 2), ncoord(n2, 2)];
+    z = [ncoord(n1, 3), ncoord(n2, 3)];
 
+    % Normaliza força para cor
+    f = forcas_por_elemento(i);
+    color_value = (f - (-max(abs(forcas_por_elemento)))) / (2*max(abs(forcas_por_elemento))); % [0,1]
+    cor = interp1(linspace(0,1,64), jet(64), color_value);
+
+    plot(x, z, 'Color', cor, 'LineWidth', 2 + 3 * abs(f)/max(abs(forcas_por_elemento)));
+end
 
 
 
