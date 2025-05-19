@@ -1,15 +1,27 @@
-clear all; close all; clc; %clf;
+% Arquivo para simulação de passarela de pedestres como estrutura de treliça.
+%¨
+% Trabalho apresentado para disciplina PME3555
+% Roberto Marques Matheo – 11734740
+% Isabela Maria Mendes Lopes – 11261614
+% Leonardo Tavares Valente – 12675913
 
-nel = 121;
-nnel = 2;
-ndof = 3;
-nnode = 46;
-edof = 6;
-sdof = nnode * ndof;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+clear all; close all; clc; clf;
+
+%Dados de entrada relevantes
+
+nel = 121;              % Número de elementos
+nnel = 2;               % Número de nós por elementos
+ndof = 3;               % Graus de liberdade por nó
+nnode = 46;             % Número de nós
+edof = 6;               % Graus de liberdade por elemento
+sdof = nnode * ndof;    % Graus de liberdade totais do sistema
 
 %_______________________________________________________
 
 %Criação da malha com coordenadas dos nós
+
 tempsum = 0.0;
 for i = 1:10
   ncoord(i,1) = tempsum; ncoord(i,2) = 0.0; ncoord(i,3) = 0.0;
@@ -40,43 +52,6 @@ for i = 39:46
   tempsum += 3.4644;
 endfor
 
-
-%_______________________________________________________
-
-% Propriedades dos elementos
-el_modulus = 205000000000;
-
-elarea = zeros(nel, 1);
-%tipos 1 e 2
-for j = [1:9, 28:44, 63:70]
-  elarea(j) = 0.000001*4*(2*101.6+203.2);
-endfor
-
-%tipo 3
-for j = [11:26, 46:61]
-  elarea(j) = 0.000001*4*(2*101.6 + 152.4);
-endfor
-
-%tipo 4
-for j = [10, 27, 45, 62]
-  elarea(j) = 0.000001*6*(2*136.5+3*203.2);
-endfor
-
-%tipo 5
-for j = [71, 80, 81, 89]
-  elarea(j) = 0.000001*4*(2*101.6+152.4);
-endfor
-
-%tipo 6
-for j = [72:79, 82:88, 90:121]
-  elarea(j) = 0.000001*4*(50.8+50.8);
-endfor
-
-for i = 1:121
-  elprop(i,1) = el_modulus;
-  elprop(i,2) = elarea(i);
-endfor
-
 %_______________________________________________________
 
 % Tabela de conectividade
@@ -93,13 +68,69 @@ nodes = [1,2; 2,3; 3,4; 4,5; 5,6;6,7; 7,8; 8,9; 9,10;
          25,43; 43,35; 34,43; 43,26; 26,44; 44,36; 35,44; 44,27; 27,45; 45,37; 36,45; 45,28; 28,46; 46,38; 37,46; 46,29];
 
 
+%_______________________________________________________
+
+% Propriedades dos elementos
+el_modulus = 205000000000;
+
+elleng = zeros(nel, 1);
+elarea = zeros(nel, 1);
+elvolume = zeros(nel, 1);
+
+for iel=1:nel    %loop para encontrar comprimento de cada elemento
+
+nd(1)=nodes(iel,1);   % 1º nó do i-ésimo elemento
+nd(2)=nodes(iel,2);   % 2º nó do i-ésimo elemento
+
+x1 = ncoord(nd(1),1); y1 = ncoord(nd(1),2); z1 = ncoord(nd(1),3);
+x2 = ncoord(nd(2),1); y2 = ncoord(nd(2),2); z2 = ncoord(nd(2),3);
+
+elleng(iel) = sqrt((x2 - x1)^2 + (y2 - y1)^2 + (z2 - z1)^2);  % comprimento
+
+end
+
+%tipos 1 e 2
+for j = [1:9, 28:44, 63:70]
+  elarea(j) = 0.000001*4*(2*101.6+203.2);
+  elvolume(j) = elleng(j) * elarea(j);
+endfor
+
+%tipo 3
+for j = [11:26, 46:61]
+  elarea(j) = 0.000001*4*(2*101.6 + 152.4);
+  elvolume(j) = elleng(j) * elarea(j);
+endfor
+
+%tipo 4
+for j = [10, 27, 45, 62]
+  elarea(j) = 0.000001*6*(2*136.5+3*203.2);
+  elvolume(j) = elleng(j) * elarea(j);
+endfor
+
+%tipo 5
+for j = [71, 80, 81, 89]
+  elarea(j) = 0.000001*4*(2*101.6+152.4);
+  elvolume(j) = elleng(j) * elarea(j);
+endfor
+
+%tipo 6
+for j = [72:79, 82:88, 90:121]
+  elarea(j) = 0.000001*4*(50.8+50.8);
+  elvolume(j) = elleng(j) * elarea(j);
+endfor
+
+for i = 1:121
+  elprop(i,1) = el_modulus;
+  elprop(i,2) = elarea(i);
+endfor
+
 
 %_______________________________________________________
 
 % Condições de contorno
 
 bcdof = [1,2,3,30,31,32,33,60];
-bcval = zeros(1,9);
+bcval = zeros(1,8);
 
 %_______________________________________________________
 
@@ -117,12 +148,18 @@ k = zeros(nnel * ndof, nnel * ndof);  % Matriz de rigidez do elemento
 % Carregamentos nodais
 % !!!!!!!!!!!!!!!!!!!!!!!Inserir peso próprio e peso do concreto
 
-f_total = 4000*31.18*3;
+total_vol = sum(elvolume);
+rho_aco1020 = 7870;
+struct_mass = total_vol * rho_aco1020;
+struct_weight = 9.81 * struct_mass;
+
+f_total = 5000*31.18*3 + struct_weight;
+f_sem_peso = f_total - struct_weight;
 
 f_conc = f_total/16;
 
-ff(6:3:27) = -f_conc;
-ff(36:3:57) = -f_conc;
+ff(3:3:30) = -f_conc;
+ff(33:3:60) = -f_conc;
 
 %--------------------------
 %  loop for elements
@@ -178,10 +215,10 @@ leng= sqrt((x2 - x1)^2 + (y2 - y1)^2 + (z2 - z1)^2);  % element length
 
 cx = (x2 - x1)/leng; cy = (y2 - y1)/leng;  cz = (z2 - z1)/leng;
 
-el=elprop(iel,1);               % extract elastic modulus
-area=elprop(iel,2);             % extract cross-sectional area
+el = elprop(iel,1);               % extract elastic modulus
+area = elprop(iel,2);             % extract cross-sectional area
 
-index=feeldof(nd,nnel,ndof);  % extract system dofs for the element
+index = feeldof(nd,nnel,ndof);  % extract system dofs for the element
 
 k = fetruss3D(el,leng,area,cx,cy,cz); % compute element matrix
 
@@ -194,16 +231,49 @@ stress(iel) = sqrt(elforce(1)^2+elforce(2)^2 + elforce(3)^2)/area; % stress calc
 
 
 if ((x2-x1)*elforce(4)) < 0;
-stress(iel)=-stress(iel);
-
-stress = stress'
-
+stress(iel) = -stress(iel);
 end
 
 end
+stress = stress';
 
+for i = 1:121
+  forcas_por_elemento(i) =  elarea(i) * stress(i) ;
+end
 
+forcas_por_elemento = forcas_por_elemento';
 
+%% Visualiza��o de deslocamentos nodais
+node_positions = zeros(nnode, 3); % Assumindo posi��es iniciais para visualiza��o
+
+for i = 1:nnode
+    node_positions(i, :) = [i, 0, 0];
+end
+
+displaced_positions = node_positions + reshape(disp, [3, nnode])';
+
+% Plot 2D
+figure;
+plot(ncoord(1:10,1), ncoord(1:10, 3), 'bo', 'DisplayName', 'Original');
+hold on;
+plot(ncoord(1:10,1)+disp(3:3:30), ncoord(1:10, 3)+ disp(3:3:30), 'ro', 'DisplayName', 'Displaced');
+legend show;
+xlabel('X Position');
+ylabel('Z Position');
+title('Nodal Displacements in 2D');
+grid on;
+
+## 3D Plot
+##figure;
+##plot3(node_positions(:, 1)/1e10, node_positions(:, 2)/1e10, node_positions(:, 3)/1e10, 'bo', 'DisplayName', 'Original');
+##hold on;
+##plot3(displaced_positions(:, 1)/1e10, displaced_positions(:, 2)/1e10, displaced_positions(:, 3)/1e10, 'ro', 'DisplayName', 'Displaced');
+##legend show;
+##xlabel('X Position');
+##ylabel('Y Position');
+##zlabel('Z Position');
+##title('3D Visualization of Nodal Displacements');
+##grid on;
 
 
 
